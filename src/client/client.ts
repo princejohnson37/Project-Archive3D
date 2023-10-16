@@ -1,46 +1,46 @@
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import * as THREE from "three";
+import Stats from "three/examples/jsm/libs/stats.module";
+import plyLoader from "./Loaders/plyLoader";
+import { files } from "./Utils/constants";
+import { Mesh, Wrapper } from "./Utils/types";
+import SceneInit from "./SceneInit";
+import App from "./App";
+import { getState, initial_State } from "./State/MaterialState";
+// import { Arrow, getLocalY } from "./Utils/HelperFunctions";
 
-const scene = new THREE.Scene()
+const client = new SceneInit();
+client.initialize();
+client.scene.add(new THREE.AxesHelper(25));
+client.scene.background = new THREE.Color(0xc9c9d9);
+const mainWrapper = new THREE.Group();
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-camera.position.z = 2
+const material: Object = initial_State['teeth'].material;
+const gumMaterial: Object = initial_State['gum'].material;
+const meshes: Mesh[] = [];
+const meshWrappers: Wrapper[] = [];
 
-const renderer = new THREE.WebGLRenderer()
-renderer.setSize(window.innerWidth, window.innerHeight)
-document.body.appendChild(renderer.domElement)
 
-const controls = new OrbitControls(camera, renderer.domElement)
 
-const geometry = new THREE.BoxGeometry()
-const material = new THREE.MeshBasicMaterial({
-    color: 0x00ff00,
-    wireframe: true,
-})
+plyLoader(files, meshes, meshWrappers, [material, gumMaterial])
+  .then((result) => {
+    client.meshes = result.meshes;
+    client.wrappers = result.wrappers;
+    result.wrappers.forEach((wrapper) => { 
+      mainWrapper.add(wrapper)
+    });
+    App(client);
+  })
+  .catch((error) => {
+    console.error("Error loading PLY models:", error);
+  });
+client.scene.add(mainWrapper);
+const stats = new Stats();
 
-const cube = new THREE.Mesh(geometry, material)
-scene.add(cube)
-
-window.addEventListener('resize', onWindowResize, false)
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-    render()
-}
-
-function animate() {
-    requestAnimationFrame(animate)
-
-    cube.rotation.x += 0.01
-    cube.rotation.y += 0.01
-
-    controls.update()
-
-    render()
-}
-
-function render() {
-    renderer.render(scene, camera)
-}
-animate()
+const animate = (): void => {
+  requestAnimationFrame(animate);
+  client.updateLightWithCamera();
+  client.controller.update();
+  client.render();
+  stats.update();
+};
+animate();
